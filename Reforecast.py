@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
+import numpy as np
 
 from prophet import Prophet
 from prophet.plot import plot_plotly
@@ -26,7 +27,10 @@ uploadedfile = st.sidebar.file_uploader(' ', type=['.csv'])
 if uploadedfile is not None:
     uploadedData = pd.read_csv(uploadedfile)
     uploadedData['Year-Month'] = uploadedData['Year'].map(str) +"-" +uploadedData['Month'].map(str)
-        
+    uploadedData['ds'] = pd.to_datetime(uploadedData['Date'])
+    uploadedData['y'] = np.dtype('int64').type(uploadedData['Actual'])
+
+
     #Preview of Data
     st.title('Data Preview')
     PreviewOption = st.selectbox(
@@ -40,27 +44,21 @@ if uploadedfile is not None:
             st.write("")
 
     #Current Trend line
-    LineData = uploadedData[['Year-Month','Actual Volume','Forecast Volume']].copy()
+    LineData = uploadedData[['Year-Month','Actual','Forecast']].copy()
     fig = px.line(
         LineData,
         x = "Year-Month",
-        y = ["Actual Volume","Forecast Volume"]
+        y = ["Actual","Forecast"]
     )
     st.plotly_chart(fig)
 
     #Forecast
-    forecastData = uploadedData[['Year-Month','Actual Volume']].copy()
-    prophet_df = (
-        df[forecastData]
-        .diff()
-        .dropna()
-        .to_frame()
-        .reset_index()
-    )
+    forecastData = uploadedData[['ds','y']].copy()
+
 
     model = Prophet()
-    model.fit(prophet_df)
-    future = model.make_future_dataframe(periods=12)
+    model.fit(forecastData)
+    future = model.make_future_dataframe(periods=100)
     forecast = model.predict(future)
 
     fig = plot_plotly(model, forecast)
@@ -68,13 +66,7 @@ if uploadedfile is not None:
         title="Reforecast"
     )
 
-    plotly_fig = make_forecast(uploadedData)
-    st.plotly_chart(plotly_fig)
-
-
-
-
-
+    st.plotly_chart(fig)
 
 else:
     st.write('Please Attach your File')
